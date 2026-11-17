@@ -1,0 +1,56 @@
+name: 網站更新追蹤
+
+on:
+  schedule:
+    # 每 30 分鐘檢查一次（GitHub 尖峰時段可能延遲幾分鐘）
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+    inputs:
+      test:
+        description: '只送一則測試訊息到 Discord（不檢查網站）'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: site-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 送測試訊息
+        if: ${{ inputs.test }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python watch.py --test-message
+
+      - name: 檢查網站
+        if: ${{ !inputs.test }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python watch.py
+
+      - name: 儲存記錄
+        if: ${{ !inputs.test }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A state UPDATES.md
+          if git diff --cached --quiet; then
+            echo "沒有要儲存的變動"
+            exit 0
+          fi
+          git commit -m "記錄網站更新 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
+          git push
