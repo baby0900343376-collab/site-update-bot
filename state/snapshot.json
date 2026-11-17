@@ -1,14 +1,5 @@
 {
  "projects": {
-  "robrun-zh-tw": {
-   "description": "ROB RUN 非官方繁體中文化（臺灣用語）。安裝時用你自己的遊戲檔案產生，不含任何遊戲檔案。",
-   "tags": [
-    "PowerShell"
-   ],
-   "title": "Robrun Zh Tw",
-   "updated": "2026-11-17",
-   "url": "https://github.com/baby0900343376-collab/robrun-zh-tw"
-  },
   "smart-lpr-permit-system": {
    "description": "",
    "tags": [
