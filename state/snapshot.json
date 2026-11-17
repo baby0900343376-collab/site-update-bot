@@ -1,0 +1,82 @@
+{
+ "projects": {
+  "robrun-zh-tw": {
+   "description": "ROB RUN 非官方繁體中文化（臺灣用語）。安裝時用你自己的遊戲檔案產生，不含任何遊戲檔案。",
+   "tags": [
+    "PowerShell"
+   ],
+   "title": "Robrun Zh Tw",
+   "updated": "2026-11-17",
+   "url": "https://github.com/baby0900343376-collab/robrun-zh-tw"
+  },
+  "site-update-bot": {
+   "description": "",
+   "tags": [
+    "Python"
+   ],
+   "title": "Site Update Bot",
+   "updated": "2026-11-17",
+   "url": "https://github.com/baby0900343376-collab/site-update-bot"
+  },
+  "smart-lpr-permit-system": {
+   "description": "",
+   "tags": [
+    "Python"
+   ],
+   "title": "Smart LPR Permit System",
+   "updated": "2026-07-21",
+   "url": "https://github.com/baby0900343376-collab/smart-lpr-permit-system"
+  }
+ },
+ "sections": {
+  "about": [
+   "關於我",
+   "01 — About",
+   "這裡記錄我的技術筆記、生活碎片與各種瞎折騰的實驗。硬體控、debug 成癮者、還在路上的學生。",
+   "在這個網站裡，我會隨手寫一些技術路上的踩坑紀錄、FiveM 開發心得、3C 硬體的體驗，或者一些純粹的生活隨筆。",
+   "FiveM 伺服器與載具開發",
+   "不只是玩遊戲，更喜歡動手改造它。我會自己編寫 FiveM 插件，也會動手設計獨一無二的載具塗裝（Livery），甚至深入調整 Handling 等載具數據，直到操縱感與性能被調校到極致。平常也會泡在全 RP 伺服器裡，體驗別人怎麼玩、怎麼設計世界觀。",
+   "跟程式與網路死磕",
+   "喜歡寫寫 Python、研究 Cisco 網路架構，雖然有時候 debug 會抓狂，但寫出漂亮邏輯的那一刻真的很爽。",
+   "效能與影音偏執狂",
+   "買手機第一看性能、第二看電量，最重要的任務是能讓我順暢地看場好電影。對 3C 產品的耐用與效能有著莫名的執著。",
+   "生活中的 Debug 狂人",
+   "不管是車機系統突然跳出奇妙的 logo 水印、還是各種奇葩的網路設定，只要被我看到，不把它修好我就渾身不對勁。",
+   "不走尋常路的旅行者",
+   "比起跟風去熱門景點，我更喜歡跟朋友一起規劃深度（甚至帶點永續概念）的在地小旅行，行程一定要夠豐富。",
+   "既然都來了，不妨隨便逛逛吧！如果這裡的內容剛好對你的胃口，歡迎透過下方連結關注我，我會不定時更新。"
+  ],
+  "contact": [
+   "有專案想聊聊？",
+   "寫信給我。",
+   "GitHub ↗ Twitch ↗ Discord — eddyhua"
+  ],
+  "footer": [
+   "© 2026 Eddyhua — Built with care."
+  ],
+  "hero": [
+   "歡迎來我家",
+   "嗨，我是 EDD。👋",
+   "這裡是我個人生活、技術碎碎念與各種日常實驗的集散地。硬體控、生活除錯大師、還有一個熱愛實作的學生——大概就是我了。",
+   "認識我 看作品"
+  ],
+  "store": [
+   "FiveM 插件販售",
+   "03 — Store",
+   "即將推出",
+   "正在整理一批 FiveM 插件準備上架販售，包含伺服器功能腳本與客製化系統。想搶先收到上架通知，歡迎透過下方聯絡方式與我聯繫。"
+  ],
+  "work": [
+   "精選作品",
+   "02 — Work"
+  ]
+ },
+ "store": {
+  "7798476": {
+   "description": "EDD Set Callsign｜車輛呼號選單 為 onx 警車模組打造的呼號選單，直接切換車身上的 5 位呼號數字，即時套用並依車牌存進資料庫。 支援 QBCore / QBX / ESX，自動偵測框架 簡潔的 NUI 介面，即時顯示完整呼號，支援滑鼠與鍵盤操作 提供 export，其他腳本可用車牌查呼號、用呼號查車",
+   "name": "EDD Set Callsign",
+   "price": "免費",
+   "url": "https://edd-store.tebex.store/package/7798476"
+  }
+ }
+}
