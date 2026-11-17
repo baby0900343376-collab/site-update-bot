@@ -333,6 +333,140 @@ def describe(ev):
 
 CATEGORY_TITLES = {'page': '📄 網頁內容', 'project': '🧰 精選作品', 'store': '🛍️ 插件販售'}
 
+# 卡片左邊的顏色條：新增＝綠、移除＝紅、修改＝黃、有新更新＝藍
+KIND_COLORS = {'add': 0x57F287, 'remove': 0xED4245, 'edit': 0xFEE75C, 'bump': 0x5865F2, 'info': 0xFF8A3D}
+CATEGORY_LABELS = {'page': '網頁內容', 'project': '精選作品', 'store': '插件販售'}
+
+
+def field(name, value, inline=True):
+    value = (value or '').strip() or '—'
+    return {'name': name, 'value': value[:1024], 'inline': inline}
+
+
+def event_card(ev):
+    """一項變動 → 一張 Discord 卡片（仿照語音頻道進出通知的樣式）。"""
+    c, k = ev['cat'], ev['kind']
+    fields, url = [], SITE_URL
+    if c == 'page':
+        w = ev['where']
+        anchor = next((sid for sid, n in SECTION_NAMES.items() if n == w), '')
+        url = SITE_URL.rstrip('/') + '/#' + anchor if anchor and anchor not in ('hero', 'footer') else SITE_URL
+        desc = {'add': f'**{w}** 區塊新增了內容。',
+                'remove': f'**{w}** 區塊移除了內容。',
+                'edit': f'**{w}** 區塊的內容被修改了。'}[k]
+        fields.append(field('區塊', w))
+        fields.append(field('變動', {'add': '新增', 'remove': '移除', 'edit': '修改'}[k]))
+        if k in ('add', 'edit'):
+            fields.append(field('內容', short(ev['new'], 900), False))
+        if k in ('remove', 'edit'):
+            fields.append(field('原本', short(ev['old'], 900), False))
+    elif c == 'project':
+        it = ev['item']
+        url = it.get('url') or SITE_URL
+        name = it['title']
+        if k == 'add':
+            desc = f'新增了作品 **{name}**。'
+        elif k == 'remove':
+            desc = f'作品 **{name}** 已從網站移除。'
+        elif k == 'bump':
+            desc = f'作品 **{name}** 有新的更新。'
+        else:
+            desc = f'作品 **{name}** 的資訊更新了。'
+        fields.append(field('作品', name))
+        fields.append(field('最後更新', (it.get('updated') or '').replace('-', '/')))
+        if it.get('tags'):
+            fields.append(field('標籤', ', '.join(it['tags'])))
+        if k == 'edit':
+            for f in ev['fields']:
+                ov, nv = ev['old'].get(f), it.get(f)
+                if f == 'tags':
+                    ov, nv = ', '.join(ov or []), ', '.join(nv or [])
+                fields.append(field(f'{FIELD_NAMES.get(f, f)}（新）', short(str(nv or ''), 500), False))
+                fields.append(field(f'{FIELD_NAMES.get(f, f)}（原本）', short(str(ov or ''), 300), False))
+        elif k in ('add', 'bump') and it.get('description'):
+            fields.append(field('介紹', short(it['description'], 500), False))
+    else:  # store
+        it = ev['item']
+        url = it.get('url') or SITE_URL.rstrip('/') + '/#store'
+        name = it['name']
+        if k == 'add':
+            desc = f'新商品 **{name}** 上架了！'
+        elif k == 'remove':
+            desc = f'商品 **{name}** 已下架。'
+        else:
+            desc = f'商品 **{name}** 的資訊更新了。'
+        fields.append(field('商品', name))
+        if k == 'edit' and 'price' in ev['fields']:
+            fields.append(field('價格', f"~~{ev['old']['price']}~~ → **{it['price']}**"))
+        else:
+            fields.append(field('價格', it['price']))
+        if k == 'edit':
+            for f in ev['fields']:
+                if f == 'price':
+                    continue
+                fields.append(field(f'{FIELD_NAMES.get(f, f)}（新）', short(str(it.get(f) or ''), 500), False))
+        elif k == 'add' and it.get('description'):
+            fields.append(field('介紹', short(it['description'], 500), False))
+    return {'kind': k, 'cat': c, 'description': desc, 'fields': fields[:25], 'url': url}
+
+
+def card_embed(card, now, author):
+    return {
+        'author': author,
+        'description': card['description'],
+        'url': card['url'],
+        'color': KIND_COLORS.get(card['kind'], KIND_COLORS['info']),
+        'fields': card['fields'],
+        'footer': {'text': CATEGORY_LABELS.get(card['cat'], '網站更新')},
+        'timestamp': now.astimezone(dt.timezone.utc).isoformat(),
+    }
+
+
+def embed_size(e):
+    n = len(e.get('description', '')) + len(e.get('footer', {}).get('text', '')) + len((e.get('author') or {}).get('name', ''))
+    return n + sum(len(f['name']) + len(f['value']) for f in e.get('fields', []))
+
+
+def build_card_payloads(cards, now, author):
+    """每則訊息最多 10 張卡片、總長 6000 字（Discord 的上限）。"""
+    payloads, cur, size = [], [], 0
+    for card in cards:
+        e = card_embed(card, now, author)
+        s = embed_size(e)
+        if cur and (len(cur) == 10 or size + s > 5800):
+            payloads.append(cur)
+            cur, size = [], 0
+        cur.append(e)
+        size += s
+    if cur:
+        payloads.append(cur)
+    return [{'username': 'EDD 網站更新', 'avatar_url': author.get('icon_url'),
+             'embeds': p, 'allowed_mentions': {'parse': []}} for p in payloads]
+
+
+def make_author(cfg):
+    user = (cfg or {}).get('gh_user') or 'baby0900343376-collab'
+    return {'name': os.environ.get('AUTHOR_NAME', 'EDD'), 'url': SITE_URL,
+            'icon_url': os.environ.get('AVATAR_URL', f'https://github.com/{user}.png')}
+
+
+def info_card(text, fields=None):
+    return {'kind': 'info', 'cat': 'info', 'description': text, 'fields': fields or [], 'url': SITE_URL}
+
+
+DEMO_EVENTS = [
+    {'cat': 'page', 'kind': 'edit', 'where': '關於', 'old': '喜歡寫寫 Python、研究 Cisco 網路架構。',
+     'new': '喜歡寫寫 Python 和 Lua、研究 Cisco 網路架構。'},
+    {'cat': 'page', 'kind': 'add', 'where': '關於', 'new': '幫 ROB RUN 做了繁體中文化，歡迎下載。'},
+    {'cat': 'project', 'kind': 'add', 'item': {'title': 'Robrun Zh Tw', 'description': 'ROB RUN 繁體中文化補丁產生器',
+     'tags': ['Python', 'PowerShell'], 'url': 'https://github.com/baby0900343376-collab/robrun-zh-tw', 'updated': '2026-11-18'}},
+    {'cat': 'project', 'kind': 'bump', 'item': {'title': 'EDD Set Callsign', 'description': '', 'tags': ['Lua', 'fivem'],
+     'url': 'https://github.com/baby0900343376-collab', 'updated': '2026-11-18'}},
+    {'cat': 'store', 'kind': 'edit', 'fields': ['price'], 'old': {'price': '12.50 USD'},
+     'item': {'name': 'EDD Set Callsign', 'price': '9.99 USD', 'description': '', 'url': ''}},
+    {'cat': 'store', 'kind': 'remove', 'item': {'name': 'EDD Old Script', 'price': '5.00 USD', 'description': '', 'url': ''}},
+]
+
 
 # ---------------------------------------------------------------- Discord
 def send_discord(payloads, dry_run):
@@ -359,40 +493,6 @@ def send_discord(payloads, dry_run):
                     continue
                 raise RuntimeError(f'Discord 拒絕訊息（HTTP {e.code}）：{e.read().decode(errors="replace")[:300]}')
         time.sleep(1)
-
-
-def build_payloads(title, groups, now):
-    """groups: [(分類標題, [行…])]，自動切成多則不超過 Discord 上限的訊息。"""
-    payloads, cur, size = [], [], 0
-    for head, lines in groups:
-        block = [f'**{head}**'] + lines
-        for line in block:
-            line = line[:1000]
-            if size + len(line) + 1 > 3800 and cur:
-                payloads.append(cur)
-                cur, size = [], 0
-            cur.append(line)
-            size += len(line) + 1
-        cur.append('')
-        size += 1
-    if cur:
-        payloads.append(cur)
-    out = []
-    for i, lines in enumerate(payloads):
-        t = title if len(payloads) == 1 else f'{title}（{i + 1}/{len(payloads)}）'
-        out.append({
-            'username': 'EDD 網站更新',
-            'embeds': [{
-                'title': t,
-                'url': SITE_URL,
-                'description': '\n'.join(lines).strip(),
-                'color': EMBED_COLOR,
-                'footer': {'text': 'EDD 網站更新追蹤'},
-                'timestamp': now.astimezone(dt.timezone.utc).isoformat(),
-            }],
-            'allowed_mentions': {'parse': []},
-        })
-    return out
 
 
 # ---------------------------------------------------------------- 記錄
@@ -437,11 +537,19 @@ def main():
     ap.add_argument('--dry-run', action='store_true', help='只印出訊息，不送到 Discord')
     ap.add_argument('--fixtures', help='（測試用）從資料夾讀 page.html / repos.json / tebex.json')
     ap.add_argument('--test-message', action='store_true', help='送一則測試訊息到 Discord')
+    ap.add_argument('--demo', action='store_true', help='送幾張範例卡片到 Discord，預覽通知的樣子')
     a = ap.parse_args()
     now = dt.datetime.now(TZ)
 
     if a.test_message:
-        send_discord(build_payloads('✅ 測試訊息', [('連線正常', [f'機器人可以發訊息到這個頻道了。正在追蹤：{SITE_URL}'])], now), a.dry_run)
+        # 測試訊息順便附上範例卡片，讓你看到真正通知的樣子
+        cards = [info_card('✅ 連線正常！機器人可以發訊息到這個頻道了。下面是通知的範例（不是真的更新）：',
+                           [field('追蹤網站', SITE_URL, False)])] + [event_card(e) for e in DEMO_EVENTS]
+        send_discord(build_card_payloads(cards, now, make_author(None)), a.dry_run)
+        return
+    if a.demo:
+        cards = [info_card('👀 以下是範例通知（不是真的更新）')] + [event_card(e) for e in DEMO_EVENTS]
+        send_discord(build_card_payloads(cards, now, make_author(None)), a.dry_run)
         return
 
     if not a.dry_run and not os.environ.get('DISCORD_WEBHOOK_URL'):
@@ -455,6 +563,7 @@ def main():
     else:
         raw = http_get(SITE_URL + ('&' if '?' in SITE_URL else '?') + f'_={int(time.time())}').decode('utf-8', 'replace')
     sections, cfg = parse_page(raw)
+    author = make_author(cfg)
     if not sections:
         sys.exit('網頁讀到了，但解析不出任何內容，先不更新記錄。')
 
@@ -501,7 +610,11 @@ def main():
                    f"精選作品：{len(snap['projects'] or {})} 個" + ('' if projects is not None else '（這次沒讀到，下次再試）'),
                    f"販售商品：{len(snap['store'] or {})} 個" + ('' if store is not None else '（這次沒讀到，下次再試）'),
                    '之後網站有任何更新，都會在這裡通知。']
-        send_discord(build_payloads('✅ 開始追蹤 EDD 的網站', [('目前內容', summary)], now), a.dry_run)
+        card = info_card('✅ 開始追蹤網站！之後有任何更新都會在這裡通知。', [
+            field('網頁區塊', f'{len(sections)} 個'),
+            field('精選作品', f"{len(snap['projects'] or {})} 個" if projects is not None else '這次沒讀到'),
+            field('販售商品', f"{len(snap['store'] or {})} 個" if store is not None else '這次沒讀到')])
+        send_discord(build_card_payloads([card], now, author), a.dry_run)
         if not a.dry_run:
             save_json(SNAPSHOT, snap)
             append_history(now, '開始追蹤', [('目前內容', summary[:3])])
@@ -529,7 +642,9 @@ def main():
         if lines:
             groups.append((CATEGORY_TITLES[cat], lines))
     title = f'🔔 網站有 {len(events)} 項更新'
-    send_discord(build_payloads(title, groups, now), a.dry_run)
+    order = {'page': 0, 'project': 1, 'store': 2}
+    cards = [event_card(e) for e in sorted(events, key=lambda e: order[e['cat']])]
+    send_discord(build_card_payloads(cards, now, author), a.dry_run)
     if not a.dry_run:
         save_json(SNAPSHOT, snap)
         append_history(now, title, groups)
